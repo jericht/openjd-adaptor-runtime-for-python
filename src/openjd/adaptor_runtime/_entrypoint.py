@@ -66,6 +66,16 @@ _CLI_HELP_TEXT = {
         "This can be a JSON string or the path to a file containing a JSON string in the format "
         "file://path/to/file.json"
     ),
+    "script_file": (
+        "Path to a Python script file to run inside the DCC via the adaptor client. "
+        "The script runs in the DCC's Python interpreter, with script_args exposed as "
+        "a top-level dict."
+    ),
+    "script_args": (
+        "Optional JSON-serializable dict exposed to the script as a top-level "
+        "script_args global. This can be a JSON string or the path to a file containing "
+        "a JSON string in the format file://path/to/file.json"
+    ),
     "path_mapping_rules": (
         "Path mapping rules to make available to the adaptor while it's running. "
         "This can be a JSON string or the path to a file containing a JSON string in the format "
@@ -111,6 +121,8 @@ class _ParsedArgs(Namespace):
     # common args
     init_data: str
     run_data: str
+    script_file: str
+    script_args: str
     path_mapping_rules: str
     connection_file: str | None
     bootstrap_log_file: str | None
@@ -309,6 +321,8 @@ class EntryPoint:
 
         if parsed_args.command == "run":
             return self._handle_run(adaptor, integration_data)
+        elif parsed_args.command == "run-script":
+            return self._handle_run_script(adaptor, parsed_args)
         elif parsed_args.command == "daemon":  # pragma: no branch
             return self._handle_daemon(
                 adaptor, parsed_args, log_config, integration_data, timeout_in_seconds, reentry_exe
@@ -361,6 +375,36 @@ class EntryPoint:
         try:
             self._adaptor_runner._start()
             self._adaptor_runner._run(integration_data.run_data)
+            self._adaptor_runner._stop()
+            self._adaptor_runner._cleanup()
+        except Exception as e:
+            _logger.error(f"Error running the adaptor: {e}")
+            try:
+                self._adaptor_runner._cleanup()
+            except Exception as e:
+                _logger.error(f"Error cleaning up the adaptor: {e}")
+                raise
+            raise
+
+    def _handle_run_script(
+        self,
+        adaptor: BaseAdaptor[AdaptorConfiguration],
+        parsed_args: _ParsedArgs,
+    ):
+        self._adaptor_runner = AdaptorRunner(adaptor=adaptor)
+        # To be able to handle cancelation via signals
+        signal.signal(signal.SIGINT, self._sigint_handler)
+        if OSName.is_posix():  # pragma: is-windows
+            signal.signal(signal.SIGTERM, self._sigint_handler)
+        else:  # pragma: is-posix
+            signal.signal(signal.SIGBREAK, self._sigint_handler)  # type: ignore[attr-defined]
+
+        script_file = parsed_args.script_file
+        script_args = parsed_args.script_args if parsed_args.script_args else {}
+
+        try:
+            self._adaptor_runner._start()
+            self._adaptor_runner._run_script(script_file, script_args)
             self._adaptor_runner._stop()
             self._adaptor_runner._cleanup()
         except Exception as e:
@@ -452,6 +496,12 @@ class EntryPoint:
                 )
                 if subcommand == "run":
                     frontend.run(integration_data.run_data)
+                elif subcommand == "run-script":
+                    script_file = parsed_args.script_file
+                    script_args = (
+                        parsed_args.script_args if parsed_args.script_args else {}
+                    )
+                    frontend.run_script(script_file, script_args)
                 elif subcommand == "stop":
                     frontend.stop()
                     frontend.shutdown()
@@ -515,10 +565,24 @@ class EntryPoint:
             help=_CLI_HELP_TEXT["path_mapping_rules"],
         )
 
+        script_args = ArgumentParser(add_help=False)
+        script_args.add_argument(
+            "--script-file", required=True, type=str, help=_CLI_HELP_TEXT["script_file"]
+        )
+        script_args.add_argument(
+            "--script-args", default="", type=_load_data, help=_CLI_HELP_TEXT["script_args"]
+        )
+
         subparser.add_parser(
             "run",
             parents=[init_data, path_mapping_rules, run_data],
             help="Run through the start, run, stop, cleanup adaptor states.",
+        )
+
+        subparser.add_parser(
+            "run-script",
+            parents=[init_data, path_mapping_rules, script_args],
+            help="Run through start, run_script, stop, cleanup adaptor states.",
         )
 
         connection_file = ArgumentParser(add_help=False)
@@ -541,7 +605,7 @@ class EntryPoint:
             title="subcommands",
             required=True,
             # Explicitly set the metavar to "hide" the "_serve" command
-            metavar="{start,run,stop}",
+            metavar="{start,run,run-script,stop}",
         )
 
         # "Hidden" command that actually runs the adaptor runtime in background mode
@@ -551,6 +615,10 @@ class EntryPoint:
         )
         bg_subparser.add_parser("start", parents=[init_data, path_mapping_rules, connection_file])
         bg_subparser.add_parser("run", parents=[run_data, connection_file])
+        bg_subparser.add_parser(
+            "run-script",
+            parents=[script_args, connection_file],
+        )
         bg_subparser.add_parser("stop", parents=[connection_file])
 
         return parser
