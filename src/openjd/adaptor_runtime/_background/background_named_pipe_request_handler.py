@@ -42,6 +42,7 @@ class WinBackgroundResourceRequestHandler(ResourceRequestHandler):
     def request_path_and_method_dict(self) -> Dict[str, List[str]]:
         return {
             "/run": ["PUT"],
+            "/run_script": ["PUT"],
             "/shutdown": ["PUT"],
             "/heartbeat": ["GET"],
             "/start": ["PUT"],

@@ -139,6 +139,17 @@ class RunHandler(BackgroundResourceRequestHandler):
         return self.server_response.generate_run_put_response()
 
 
+class RunScriptHandler(BackgroundResourceRequestHandler):
+    """
+    Handler for the run_script resource.
+    """
+
+    path: str = "/run_script"
+
+    def put(self) -> HTTPResponse:
+        return self.server_response.generate_run_script_put_response()
+
+
 class StartHandler(BackgroundResourceRequestHandler):
     """
     Handler for the start resource.
