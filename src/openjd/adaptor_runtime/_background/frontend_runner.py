@@ -233,6 +233,19 @@ class FrontendRunner:
         self._send_request("PUT", "/run", json_body=run_data)
         self._heartbeat_until_state_complete(AdaptorState.RUN)
 
+    def run_script(self, script_file: str, script_args: dict | None = None) -> None:
+        """
+        Sends a run_script request to the backend
+
+        Args:
+            script_file (str): Absolute path to a .py file readable by the DCC host.
+            script_args (dict, optional): JSON-serializable mapping exposed to the script
+                as a top-level `script_args` global.
+        """
+        body = {"script_file": script_file, "script_args": script_args or {}}
+        self._send_request("PUT", "/run_script", json_body=body)
+        self._heartbeat_until_state_complete(AdaptorState.RUN_SCRIPT)
+
     def start(self) -> None:
         """
         Sends a start request to the backend
