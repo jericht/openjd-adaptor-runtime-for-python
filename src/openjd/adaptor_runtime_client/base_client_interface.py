@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json as _json
+import runpy as _runpy
 import sys as _sys
+import traceback as _traceback
 from abc import abstractmethod as _abstractmethod
 from abc import ABC as _ABC
 
@@ -61,6 +63,7 @@ class BaseClientInterface(_ABC):
         self.server_path = server_path
         self.actions = {
             "close": self.close,
+            "__openjd_run_script__": self._run_script,
         }
 
     @_abstractmethod
@@ -193,6 +196,33 @@ class BaseClientInterface(_ABC):
                 )
 
         return rules
+
+    def _run_script(self, args: _Dict[str, _Any]) -> None:
+        """Runs a Python script file inside the DCC process via runpy.
+
+        Args:
+            args (dict): Must contain 'script_file' (str). Optional 'script_args'
+                (dict) is exposed to the script via init globals as a top-level
+                `script_args`. Optional '_extra_globals' (dict) is merged into
+                init globals — reserved for DCC-specific subclass overrides
+                (e.g. Blender injecting `bpy`).
+        """
+        script_file = args["script_file"]
+        script_args = args.get("script_args", {}) or {}
+        extra_globals = args.get("_extra_globals", {}) or {}
+        init_globals: _Dict[str, _Any] = {"script_args": script_args}
+        init_globals.update(extra_globals)
+        try:
+            _runpy.run_path(
+                script_file,
+                init_globals=init_globals,
+                run_name="__openjd_run_script__",
+            )
+        except BaseException:
+            _traceback.print_exc()
+            print(f"openjd_run_script_error: {script_file}", flush=True)
+            return
+        print(f"openjd_run_script_complete: {script_file}", flush=True)
 
     def poll(self) -> None:
         """

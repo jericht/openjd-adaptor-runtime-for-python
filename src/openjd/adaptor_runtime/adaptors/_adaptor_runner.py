@@ -44,6 +44,18 @@ class AdaptorRunner(AdaptorStates):
 
         _logger.debug("Task complete")
 
+    def _run_script(self, script_file: str, script_args: dict | None = None):
+        _logger.debug("Running script")
+        self.state = AdaptorState.RUN_SCRIPT
+
+        try:
+            self.adaptor._run_script(script_file, script_args or {})
+        except Exception as e:
+            _fail(f"Error encountered while running script: {e}")
+            raise
+
+        _logger.debug("Script complete")
+
     def _stop(self):
         _logger.debug("Stopping...")
         self.state = AdaptorState.STOP

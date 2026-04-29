@@ -19,6 +19,7 @@ class AdaptorState(str, Enum):
     NOT_STARTED = "not_started"
     START = "start"
     RUN = "run"
+    RUN_SCRIPT = "run_script"
     STOP = "stop"
     CLEANUP = "cleanup"
     CANCELED = "canceled"

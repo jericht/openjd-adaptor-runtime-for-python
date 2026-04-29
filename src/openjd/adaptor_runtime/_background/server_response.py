@@ -197,6 +197,34 @@ class ServerResponseGenerator:
             self.body if self.body else {},
         )
 
+    def generate_run_script_put_response(self) -> Optional[HTTPResponse]:
+        """
+        Handle Put request to /run_script path.
+
+        Expected body: {"script_file": str, "script_args": dict (optional)}
+
+        Returns:
+            Linux: return HTTPResponse.
+            Windows: return None. Response will be sent in self.response_method immediately.
+        """
+        if self.server._future_runner.is_running:
+            return self.response_method(HTTPStatus.BAD_REQUEST)
+
+        body = self.body or {}
+        script_file = body.get("script_file")
+        if not script_file:
+            return self.response_method(
+                HTTPStatus.BAD_REQUEST,
+                body="run_script request body must contain 'script_file'",
+            )
+        script_args = body.get("script_args") or {}
+
+        return self.submit(
+            self.server._adaptor_runner._run_script,
+            script_file,
+            script_args,
+        )
+
     def generate_start_put_response(self) -> Optional[HTTPResponse]:
         """
         Handle Put request to /start path.
