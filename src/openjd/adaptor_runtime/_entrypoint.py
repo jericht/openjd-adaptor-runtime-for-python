@@ -54,7 +54,7 @@ __all__ = ["EntryPoint"]
 
 _U = TypeVar("_U", bound=BaseAdaptor)
 
-_ADAPTOR_CLI_VERSION = SemanticVersion(major=0, minor=1)
+_ADAPTOR_CLI_VERSION = SemanticVersion(major=0, minor=2)
 _CLI_HELP_TEXT = {
     "init_data": (
         "Data to pass to the adaptor during initialization. "

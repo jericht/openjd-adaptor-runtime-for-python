@@ -1,3 +1,18 @@
+## Unreleased
+
+
+### Features
+
+* Added `run-script` CLI command (one-shot) and `daemon run-script` subcommand for running Python scripts inside a DCC via the adaptor client. The DCC interpreter executes the script via `runpy.run_path`, with optional `script_args` exposed as a top-level dict.
+* New `AdaptorState.RUN_SCRIPT` state and `AdaptorRunner._run_script(script_file, script_args)` driver method.
+* New `Adaptor.on_run_script` default implementation that concrete DCC adaptors inherit automatically. Concrete adaptors that expose `_action_queue: ActionsQueue` (the canonical pattern) only need to append `self._get_run_script_regex_callbacks()` to their existing regex-callback registration to opt in to completion signaling.
+* New `__openjd_run_script__` default action seeded on `BaseClientInterface`, with `runpy`-based script execution, `BaseException` handling, and stdout sentinel completion signaling. Concrete clients may override to inject DCC-specific globals (e.g. Blender's `bpy`) via the reserved `_extra_globals` arg.
+* New daemon wire endpoint `PUT /run_script` registered on both POSIX HTTP (`RunScriptHandler`) and Windows named pipe (`request_path_and_method_dict`).
+* New `FrontendRunner.run_script(script_file, script_args)` client method.
+* New stdout sentinel prefixes: `openjd_run_script_complete:` and `openjd_run_script_error:` in `_utils/_constants.py`.
+* CLI version bumped to `0.2`.
+
+
 ## 0.9.3 (2025-11-17)
 
 
